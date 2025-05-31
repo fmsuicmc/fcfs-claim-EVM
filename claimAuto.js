@@ -26,7 +26,8 @@ function ask(question) {
 
     console.log("🤖 Claim bot started. Checking every 2 seconds...");
 
-    let lastMaxFee = 0n; // to avoid underpriced txs
+    let lastMaxFee = 0n;
+    let lastPriorityFee = 0n;
 
     const loop = async () => {
       try {
@@ -52,22 +53,24 @@ function ask(question) {
         console.log("🚀 Claiming tokens...");
 
         const feeData = await provider.getFeeData();
-        let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? 2n * 10n ** 9n;
-        let maxFeePerGas = feeData.maxFeePerGas ?? 20n * 10n ** 9n;
+        let maxPriorityFee = feeData.maxPriorityFeePerGas ?? 2n * 10n ** 9n;
+        let maxFee = feeData.maxFeePerGas ?? 20n * 10n ** 9n;
 
-        // Increase to avoid underpriced tx
-        if (lastMaxFee > 0n) {
-          maxFeePerGas = lastMaxFee * 112n / 100n; // +12%
-          maxPriorityFeePerGas = maxPriorityFeePerGas * 112n / 100n;
+        // If previous tx sent, increase gas fees to avoid underpriced errors
+        if (lastMaxFee > 0n && lastPriorityFee > 0n) {
+          maxFee = lastMaxFee * 125n / 100n;
+          maxPriorityFee = lastPriorityFee * 125n / 100n;
         }
-        lastMaxFee = maxFeePerGas;
 
-        const nonce = await provider.getTransactionCount(wallet.address, 'latest');
+        lastMaxFee = maxFee;
+        lastPriorityFee = maxPriorityFee;
+
+        const nonce = await provider.getTransactionCount(wallet.address, "latest");
 
         const tx = await contract.claim(wallet.address, {
           gasLimit: 250000n,
-          maxPriorityFeePerGas,
-          maxFeePerGas,
+          maxFeePerGas: maxFee,
+          maxPriorityFeePerGas: maxPriorityFee,
           nonce
         });
 
@@ -77,7 +80,7 @@ function ask(question) {
         process.exit(0);
 
       } catch (err) {
-        console.error("❌ Error in loop:", err.message || err);
+        console.error("❌ Error in loop:", err.reason || err.message || err);
       }
     };
 
