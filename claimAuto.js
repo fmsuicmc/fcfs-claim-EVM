@@ -20,41 +20,52 @@ function ask(question) {
     rl.close();
 
     const abi = JSON.parse(abiRaw);
-
     const provider = new ethers.JsonRpcProvider(providerUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
     const contract = new ethers.Contract(contractAddress, abi, wallet);
 
-    console.log('🔎 Checking contract state...');
+    console.log("🤖 Claim bot started. Checking every 2 seconds...");
 
-    const isOpen = await contract.claimIsOpen();
-    if (!isOpen) {
-      console.log('⛔ Claim is not open.');
-      return;
-    }
+    const loop = async () => {
+      try {
+        const isOpen = await contract.claimIsOpen();
+        if (!isOpen) {
+          console.log("⏳ Claim is not open yet. Retrying...");
+          return;
+        }
 
-    const claimStart = await contract.claimStart();
-    const now = Math.floor(Date.now() / 1000);
-    if (claimStart > now) {
-      console.log('⏳ Claim has not started yet.');
-      return;
-    }
+        const claimStart = await contract.claimStart();
+        const now = Math.floor(Date.now() / 1000);
+        if (claimStart > now) {
+          console.log(`🕒 Claim starts at ${claimStart}, current time is ${now}. Retrying...`);
+          return;
+        }
 
-    const alreadyClaimed = await contract.hasClaimed(wallet.address);
-    if (alreadyClaimed) {
-      console.log('✅ You have already claimed.');
-      return;
-    }
+        const alreadyClaimed = await contract.hasClaimed(wallet.address);
+        if (alreadyClaimed) {
+          console.log("✅ You have already claimed. Exiting bot.");
+          process.exit(0);
+        }
 
-    console.log('🚀 Claiming tokens...');
-    const tx = await contract.claim(wallet.address);
-    console.log('📤 Transaction sent. Waiting for confirmation...');
+        console.log("🚀 Claiming tokens...");
+        const tx = await contract.claim(wallet.address);
+        console.log("📤 Transaction sent. Waiting for confirmation...");
 
-    const receipt = await tx.wait();
-    console.log('🎉 Claim successful! TxHash:', receipt.transactionHash);
+        const receipt = await tx.wait();
+        console.log("🎉 Claim successful! TxHash:", receipt.transactionHash);
+        process.exit(0);
+
+      } catch (err) {
+        console.error("❌ Error in loop:", err.message || err);
+      }
+    };
+
+    // run loop every 2 seconds
+    setInterval(loop, 2000);
+    await loop(); // run immediately once
 
   } catch (err) {
-    console.error('❌ Error:', err.message || err);
+    console.error('❌ Initialization error:', err.message || err);
     rl.close();
   }
 })();
