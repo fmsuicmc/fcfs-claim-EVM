@@ -49,20 +49,24 @@ function ask(question) {
 
         console.log("🚀 Claiming tokens...");
 
-        // دریافت گس‌پرایس از شبکه و افزایش آن
-        const baseGasPrice = await provider.getGasPrice();
-        const boostedGasPrice = baseGasPrice.mul(12).div(10); // +20%
+        // ✅ Get dynamic gas price (ethers.js v6 way)
+        const feeData = await provider.getFeeData();
+        const baseGasPrice = feeData.gasPrice;
+        if (!baseGasPrice) throw new Error("⚠️ Unable to fetch gas price from provider.");
+
+        const boostedGasPrice = baseGasPrice * 1.2; // 20% higher
 
         const nonce = await provider.getTransactionCount(wallet.address);
+
         const tx = await contract.claim(wallet.address, {
-          gasLimit: 250000,
-          gasPrice: boostedGasPrice,
-          nonce: nonce,
+          gasLimit: 250000n,
+          gasPrice: BigInt(Math.floor(boostedGasPrice)),
+          nonce
         });
 
         console.log("📤 Transaction sent. Waiting for confirmation...");
         const receipt = await tx.wait();
-        console.log("🎉 Claim successful! TxHash:", receipt.transactionHash);
+        console.log("🎉 Claim successful! TxHash:", receipt.hash);
         process.exit(0);
 
       } catch (err) {
