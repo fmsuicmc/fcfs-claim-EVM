@@ -48,9 +48,19 @@ function ask(question) {
         }
 
         console.log("🚀 Claiming tokens...");
-        const tx = await contract.claim(wallet.address);
-        console.log("📤 Transaction sent. Waiting for confirmation...");
 
+        // دریافت گس‌پرایس از شبکه و افزایش آن
+        const baseGasPrice = await provider.getGasPrice();
+        const boostedGasPrice = baseGasPrice.mul(12).div(10); // +20%
+
+        const nonce = await provider.getTransactionCount(wallet.address);
+        const tx = await contract.claim(wallet.address, {
+          gasLimit: 250000,
+          gasPrice: boostedGasPrice,
+          nonce: nonce,
+        });
+
+        console.log("📤 Transaction sent. Waiting for confirmation...");
         const receipt = await tx.wait();
         console.log("🎉 Claim successful! TxHash:", receipt.transactionHash);
         process.exit(0);
@@ -60,9 +70,8 @@ function ask(question) {
       }
     };
 
-    // run loop every 2 seconds
     setInterval(loop, 2000);
-    await loop(); // run immediately once
+    await loop();
 
   } catch (err) {
     console.error('❌ Initialization error:', err.message || err);
