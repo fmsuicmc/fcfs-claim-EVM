@@ -49,18 +49,18 @@ function ask(question) {
 
         console.log("🚀 Claiming tokens...");
 
-        // ✅ Get dynamic gas price (ethers.js v6 way)
+        // ✅ Dynamic gas price with +20% boost using BigInt
         const feeData = await provider.getFeeData();
         const baseGasPrice = feeData.gasPrice;
         if (!baseGasPrice) throw new Error("⚠️ Unable to fetch gas price from provider.");
 
-        const boostedGasPrice = baseGasPrice * 1.2; // 20% higher
+        const boostedGasPrice = baseGasPrice * 120n / 100n;
 
         const nonce = await provider.getTransactionCount(wallet.address);
 
         const tx = await contract.claim(wallet.address, {
           gasLimit: 250000n,
-          gasPrice: BigInt(Math.floor(boostedGasPrice)),
+          gasPrice: boostedGasPrice,
           nonce
         });
 
