@@ -26,6 +26,8 @@ function ask(question) {
 
     console.log("🤖 Claim bot started. Checking every 2 seconds...");
 
+    let lastMaxFee = 0n; // to avoid underpriced txs
+
     const loop = async () => {
       try {
         const isOpen = await contract.claimIsOpen();
@@ -49,18 +51,23 @@ function ask(question) {
 
         console.log("🚀 Claiming tokens...");
 
-        // ✅ Dynamic gas price with +20% boost using BigInt
         const feeData = await provider.getFeeData();
-        const baseGasPrice = feeData.gasPrice;
-        if (!baseGasPrice) throw new Error("⚠️ Unable to fetch gas price from provider.");
+        let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? 2n * 10n ** 9n;
+        let maxFeePerGas = feeData.maxFeePerGas ?? 20n * 10n ** 9n;
 
-        const boostedGasPrice = baseGasPrice * 120n / 100n;
+        // Increase to avoid underpriced tx
+        if (lastMaxFee > 0n) {
+          maxFeePerGas = lastMaxFee * 112n / 100n; // +12%
+          maxPriorityFeePerGas = maxPriorityFeePerGas * 112n / 100n;
+        }
+        lastMaxFee = maxFeePerGas;
 
-        const nonce = await provider.getTransactionCount(wallet.address);
+        const nonce = await provider.getTransactionCount(wallet.address, 'latest');
 
         const tx = await contract.claim(wallet.address, {
           gasLimit: 250000n,
-          gasPrice: boostedGasPrice,
+          maxPriorityFeePerGas,
+          maxFeePerGas,
           nonce
         });
 
